@@ -10,12 +10,17 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 // Define available molecules and the default selection
 const MOLECULES = {
-    'caffeine': 'caffeine.pdb'
-}
+    'caffeine': 'caffeine.pdb',
+    'test': 'test.pdb',
+};
 
-// Default molecule used
+// Define available styles
+const STYLES = ['Spheres', 'Wireframe', 'Points'];
+
+// Default molecule and visualization style
 const params = {
-    molecule: 'caffeine.pdb'
+    molecule: 'caffeine.pdb',
+    style: 'Spheres',
 };
 
 // Initialize the PDBLoader instance for loading molecular data
@@ -26,6 +31,7 @@ const offset = new THREE.Vector3();
 
 const MoleculeVisualization = () => {
     const [molecule, setMolecule] = useState(params.molecule);
+    const [style, setStyle] = useState(params.style);
 
     useEffect(() => {
         // Set up the CSS2DRenderer for rendering HTML labels in 3D
@@ -33,19 +39,26 @@ const MoleculeVisualization = () => {
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
         labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
 
-        // Create and configure the GUI for selecting different molecules
-        // Name of the section will be 'molecule' and the property will be updated when the user selects another property
+        // Create and configure the GUI for selecting different molecules and styles
         const gui = new GUI();
         gui.add(params, 'molecule', MOLECULES).onChange((value) => {
             setMolecule(value); // Update state when molecule selection changes
+        });
+        gui.add(params, 'style', STYLES).onChange((value) => {
+            setStyle(value); // Update state when style selection changes
         });
         gui.open(); // Open the GUI
 
         // Clean up GUI on component unmount
         return () => {
+            // Remove the GUI window
             gui.destroy();
-        }
+
+            // Remove the 3D rendering
+            document.body.removeChild(labelRenderer.domElement);
+        };
     }, []);
 
     return (
@@ -53,15 +66,15 @@ const MoleculeVisualization = () => {
             {/* Lighting setup */}
             <ambientLight />
             <pointLight position={[10, 10, 10]} />
-            {/* Molecule component with current model */}
-            <Molecule model={molecule} />
+            {/* Molecule component with current model and style */}
+            <Molecule model={molecule} style={style} />
             {/* OrbitControls to allow user interaction */}
             <OrbitControls />
         </Canvas>
     );
 };
 
-const Molecule = ({ model }) => {
+const Molecule = ({ model, style }) => {
     const { scene, camera, gl } = useThree();
     const root = useRef(); // Ref to the group that contains 3D objects
 
@@ -70,7 +83,7 @@ const Molecule = ({ model }) => {
         camera.position.set(700, 200, 0); // Position the camera
         camera.lookAt(0, 0, 0); // Point the camera at the origin
 
-        const loadMolecule = (model) => {
+        const loadMolecule = (model, style) => {
             const url = 'PDB/' + model;
 
             // Clear previous objects from the group
@@ -81,16 +94,24 @@ const Molecule = ({ model }) => {
 
             // Load the molecule data
             loader.load(url, function (pdb) {
+                // Contains the geometry data for the atoms
                 const geometryAtoms = pdb.geometryAtoms;
+
+                // Contains the  geometry data for the bonds
                 const geometryBonds = pdb.geometryBonds;
+
+                // Contains additional metadata about the molecule
                 const json = pdb.json;
 
+                // Used to create the geometry for the bonds
                 const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+                // Used to create the geometry for the molecule
                 const sphereGeometry = new THREE.IcosahedronGeometry(1, 3);
 
-                // Center the geometry around the origin
                 geometryAtoms.computeBoundingBox();
                 geometryAtoms.boundingBox.getCenter(offset).negate();
+
                 geometryAtoms.translate(offset.x, offset.y, offset.z);
                 geometryBonds.translate(offset.x, offset.y, offset.z);
 
@@ -100,7 +121,7 @@ const Molecule = ({ model }) => {
                 const position = new THREE.Vector3();
                 const color = new THREE.Color();
 
-                // Create spheres for atoms and labels for each atom
+                // Creating 3D Atoms object
                 for (let i = 0; i < positions.count; i++) {
                     position.x = positions.getX(i);
                     position.y = positions.getY(i);
@@ -110,8 +131,20 @@ const Molecule = ({ model }) => {
                     color.g = colors.getY(i);
                     color.b = colors.getZ(i);
 
-                    const material = new THREE.MeshPhongMaterial({ color: color });
-                    const object = new THREE.Mesh(sphereGeometry, material);
+                    let material;
+                    let object;
+
+                    if (style === 'Spheres') {
+                        material = new THREE.MeshPhongMaterial({ color: color });
+                        object = new THREE.Mesh(sphereGeometry, material);
+                    } else if (style === 'Wireframe') {
+                        material = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
+                        object = new THREE.Mesh(sphereGeometry, material);
+                    } else if (style === 'Points') {
+                        material = new THREE.PointsMaterial({ color: color, size: 10 });
+                        object = new THREE.Points(sphereGeometry, material);
+                    }
+
                     object.position.copy(position);
                     object.position.multiplyScalar(75);
                     object.scale.multiplyScalar(25);
@@ -119,11 +152,11 @@ const Molecule = ({ model }) => {
 
                     const atom = json.atoms[i];
 
-                    // Create a label for each atom
                     const text = document.createElement('div');
                     text.className = 'label';
                     text.style.color = 'rgb(' + atom[3][0] + ',' + atom[3][1] + ',' + atom[3][2] + ')';
                     text.textContent = atom[4];
+
                     const label = new CSS2DObject(text);
                     label.position.copy(object.position);
                     root.current.add(label);
@@ -134,7 +167,7 @@ const Molecule = ({ model }) => {
                 const start = new THREE.Vector3();
                 const end = new THREE.Vector3();
 
-                // Create cylinders for bonds between atoms
+                // Creating 3D Bonds object
                 for (let i = 0; i < positions.count; i += 2) {
                     start.x = positions.getX(i);
                     start.y = positions.getY(i);
@@ -157,10 +190,9 @@ const Molecule = ({ model }) => {
             });
         };
 
-        loadMolecule(model);
+        loadMolecule(model, style);
 
         // Animation loop for continuous rendering
-        // It's the effect that causes the continuous rotation of the 3D molecule
         const animate = () => {
             const time = Date.now() * 0.0004;
             root.current.rotation.x = time;
@@ -169,6 +201,7 @@ const Molecule = ({ model }) => {
             gl.render(scene, camera);
         };
 
+        // Set the animation function as the function to render every time there is a change in the window
         gl.setAnimationLoop(animate);
 
         // Update renderer and camera on window resize
@@ -183,7 +216,7 @@ const Molecule = ({ model }) => {
             window.removeEventListener('resize', () => {});
             gl.setAnimationLoop(null);
         };
-    }, [model, scene, camera, gl]);
+    }, [model, style, scene, camera, gl]);
 
     return <group ref={root} />;
 };
