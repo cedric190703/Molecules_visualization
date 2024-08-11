@@ -15,7 +15,10 @@ interface Props {
 // Define available molecules and the default selection
 const MOLECULES = {
     'caffeine': 'caffeine.pdb',
-    'test': 'test.pdb',
+    'ethanol': 'ethanol.pdb',
+    'glucose': 'glucose.pdb',
+    'cocaine': 'cocaine.pdb',
+    'cholesterol': 'cholesterol.pdb'
 };
 
 // Define available styles
@@ -61,8 +64,6 @@ const MoleculeVisualization : React.FC<Props> = ({ content }) => {
             // Remove the GUI window
             gui.destroy();
 
-            // Remove the 3D rendering
-            document.body.removeChild(labelRenderer.domElement);
         };
     }, []);
 
