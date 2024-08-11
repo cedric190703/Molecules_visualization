@@ -3,9 +3,13 @@
 import Link from 'next/link'
 import Logo from '@/../public/logo.png';
 import Image from "next/image";
-import {useRef, useState} from "react";
+import React, {useRef, useState} from "react";
 
-const TopBar = () => {
+interface Props {
+    handleClickFile?: (content: string) => void;
+}
+
+const TopBar : React.FC<Props> = ({ handleClickFile }) => {
     const fileInputRef = useRef(null);
     const [active, setActive] = useState<string>("home");
 
@@ -16,13 +20,22 @@ const TopBar = () => {
     const handleFileChange = (event: any) => {
         const file = event.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                // Handle file content hereactive
-                console.log('File content:', e.target.result);
-                // You can process or display the file content as needed
-            };
-            reader.readAsText(file); // Read the file as text (you can use other methods like readAsArrayBuffer, readAsDataURL as needed)
+            const fileName = file.name;
+            const fileExtension = fileName.split(".").pop().toLowerCase();
+
+            if (fileExtension === 'pdb') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (handleClickFile) {
+                        handleClickFile(e.target.result);
+                    }
+                };
+
+                // Read the file as text (you can use other methods like readAsArrayBuffer, readAsDataURL as needed)
+                reader.readAsText(file);
+            } else {
+                alert('Please upload a file with a .pdb extension only');
+            }
         }
     };
 

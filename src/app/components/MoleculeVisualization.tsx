@@ -8,6 +8,10 @@ import { PDBLoader } from 'three/addons/loaders/PDBLoader.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
+interface Props {
+    content: string;
+}
+
 // Define available molecules and the default selection
 const MOLECULES = {
     'caffeine': 'caffeine.pdb',
@@ -15,7 +19,7 @@ const MOLECULES = {
 };
 
 // Define available styles
-const STYLES = ['Spheres', 'Wireframe', 'Points'];
+const STYLES = ['Spheres', 'Wireframe', 'Points', 'Depth', 'Normal', 'Physical'];
 
 // Default molecule and visualization style
 const params = {
@@ -29,7 +33,7 @@ const loader = new PDBLoader();
 // Vector3 for positioning molecules correctly
 const offset = new THREE.Vector3();
 
-const MoleculeVisualization = () => {
+const MoleculeVisualization : React.FC<Props> = ({ content }) => {
     const [molecule, setMolecule] = useState(params.molecule);
     const [style, setStyle] = useState(params.style);
 
@@ -49,6 +53,7 @@ const MoleculeVisualization = () => {
         gui.add(params, 'style', STYLES).onChange((value) => {
             setStyle(value); // Update state when style selection changes
         });
+
         gui.open(); // Open the GUI
 
         // Clean up GUI on component unmount
@@ -67,14 +72,14 @@ const MoleculeVisualization = () => {
             <ambientLight />
             <pointLight position={[10, 10, 10]} />
             {/* Molecule component with current model and style */}
-            <Molecule model={molecule} style={style} />
+            <Molecule model={molecule} style={style} content={content} />
             {/* OrbitControls to allow user interaction */}
             <OrbitControls />
         </Canvas>
     );
 };
 
-const Molecule = ({ model, style }) => {
+const Molecule = ({ model, style, content }) => {
     const { scene, camera, gl } = useThree();
     const root = useRef(); // Ref to the group that contains 3D objects
 
@@ -84,7 +89,7 @@ const Molecule = ({ model, style }) => {
         camera.lookAt(0, 0, 0); // Point the camera at the origin
 
         const loadMolecule = (model, style) => {
-            const url = 'PDB/' + model;
+            const url = content ? `data:text/plain;base64,${btoa(content)}` : 'PDB/' + model;
 
             // Clear previous objects from the group
             while (root.current.children.length > 0) {
@@ -143,6 +148,22 @@ const Molecule = ({ model, style }) => {
                     } else if (style === 'Points') {
                         material = new THREE.PointsMaterial({ color: color, size: 10 });
                         object = new THREE.Points(sphereGeometry, material);
+                    } else if (style === 'Depth') {
+                        material = new THREE.MeshDepthMaterial();
+                        object = new THREE.Mesh(sphereGeometry, material);
+                    } else if (style === 'Normal') {
+                        material = new THREE.MeshNormalMaterial();
+                        object = new THREE.Mesh(sphereGeometry, material);
+                    } else if (style === 'Physical') {
+                        material = new THREE.MeshPhysicalMaterial({
+                            color: color,
+                            metalness: 0.5,
+                            roughness: 0.5,
+                            reflectivity: 0.5,
+                            clearcoat: 1.0,
+                            clearcoatRoughness: 0.1
+                        });
+                        object = new THREE.Mesh(sphereGeometry, material);
                     }
 
                     object.position.copy(position);
