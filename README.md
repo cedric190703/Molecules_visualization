@@ -1,4 +1,15 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Simple Molecules Visualization Application
+
+I created a simple molecules visualization application using Next.js for the application framework, Tailwind CSS for styling, and Three.js for the 3D rendering of molecules.
+
+I used this example to understand the PDB loader from Three.js: [Three.js Molecules Example](https://threejs.org/examples/?q=molecules#css3d_molecules)
+
+![UI of the Application](public/c1.png)
+
+The user can choose between different molecules, different styles of representation of the 3D object and also the type of model he wants like a 3D model with only Atoms, only Bonds or the two.
+
+And user can also open a PDB file to see the result and interact with it.
+![UI of the Application](public/c2.png)
 
 ## Getting Started
 
