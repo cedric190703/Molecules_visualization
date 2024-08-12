@@ -24,10 +24,13 @@ const MOLECULES = {
 // Define available styles
 const STYLES = ['Spheres', 'Wireframe', 'Points', 'Depth', 'Normal', 'Physical'];
 
+const TYPES = ['Atoms', 'Bonds', 'Atoms + Bonds'];
+
 // Default molecule and visualization style
 const params = {
     molecule: 'caffeine.pdb',
     style: 'Spheres',
+    type: 'Atoms + Bonds'
 };
 
 // Initialize the PDBLoader instance for loading molecular data
@@ -39,6 +42,7 @@ const offset = new THREE.Vector3();
 const MoleculeVisualization : React.FC<Props> = ({ content }) => {
     const [molecule, setMolecule] = useState(params.molecule);
     const [style, setStyle] = useState(params.style);
+    const [type, setType] = useState(params.type);
 
     useEffect(() => {
         // Set up the CSS2DRenderer for rendering HTML labels in 3D
@@ -53,8 +57,15 @@ const MoleculeVisualization : React.FC<Props> = ({ content }) => {
         gui.add(params, 'molecule', MOLECULES).onChange((value) => {
             setMolecule(value); // Update state when molecule selection changes
         });
+
+        // Add styles options
         gui.add(params, 'style', STYLES).onChange((value) => {
             setStyle(value); // Update state when style selection changes
+        });
+
+        // Add types options
+        gui.add(params, 'type', TYPES).onChange((value) => {
+            setType(value); // Update state when type selection changes
         });
 
         gui.open(); // Open the GUI
@@ -73,14 +84,14 @@ const MoleculeVisualization : React.FC<Props> = ({ content }) => {
             <ambientLight />
             <pointLight position={[10, 10, 10]} />
             {/* Molecule component with current model and style */}
-            <Molecule model={molecule} style={style} content={content} />
+            <Molecule model={molecule} style={style} content={content} type={type} />
             {/* OrbitControls to allow user interaction */}
             <OrbitControls />
         </Canvas>
     );
 };
 
-const Molecule = ({ model, style, content }) => {
+const Molecule = ({ model, style, content, type }) => {
     const { scene, camera, gl } = useThree();
     const root = useRef(); // Ref to the group that contains 3D objects
 
@@ -127,61 +138,63 @@ const Molecule = ({ model, style, content }) => {
                 const position = new THREE.Vector3();
                 const color = new THREE.Color();
 
-                // Creating 3D Atoms object
-                for (let i = 0; i < positions.count; i++) {
-                    position.x = positions.getX(i);
-                    position.y = positions.getY(i);
-                    position.z = positions.getZ(i);
+                if (type === 'Atoms' || type === 'Atoms + Bonds') {
+                    // Creating 3D Atoms object
+                    for (let i = 0; i < positions.count; i++) {
+                        position.x = positions.getX(i);
+                        position.y = positions.getY(i);
+                        position.z = positions.getZ(i);
 
-                    color.r = colors.getX(i);
-                    color.g = colors.getY(i);
-                    color.b = colors.getZ(i);
+                        color.r = colors.getX(i);
+                        color.g = colors.getY(i);
+                        color.b = colors.getZ(i);
 
-                    let material;
-                    let object;
+                        let material;
+                        let object;
 
-                    if (style === 'Spheres') {
-                        material = new THREE.MeshPhongMaterial({ color: color });
-                        object = new THREE.Mesh(sphereGeometry, material);
-                    } else if (style === 'Wireframe') {
-                        material = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
-                        object = new THREE.Mesh(sphereGeometry, material);
-                    } else if (style === 'Points') {
-                        material = new THREE.PointsMaterial({ color: color, size: 10 });
-                        object = new THREE.Points(sphereGeometry, material);
-                    } else if (style === 'Depth') {
-                        material = new THREE.MeshDepthMaterial();
-                        object = new THREE.Mesh(sphereGeometry, material);
-                    } else if (style === 'Normal') {
-                        material = new THREE.MeshNormalMaterial();
-                        object = new THREE.Mesh(sphereGeometry, material);
-                    } else if (style === 'Physical') {
-                        material = new THREE.MeshPhysicalMaterial({
-                            color: color,
-                            metalness: 0.5,
-                            roughness: 0.5,
-                            reflectivity: 0.5,
-                            clearcoat: 1.0,
-                            clearcoatRoughness: 0.1
-                        });
-                        object = new THREE.Mesh(sphereGeometry, material);
+                        if (style === 'Spheres') {
+                            material = new THREE.MeshPhongMaterial({ color: color });
+                            object = new THREE.Mesh(sphereGeometry, material);
+                        } else if (style === 'Wireframe') {
+                            material = new THREE.MeshBasicMaterial({ color: color, wireframe: true });
+                            object = new THREE.Mesh(sphereGeometry, material);
+                        } else if (style === 'Points') {
+                            material = new THREE.PointsMaterial({ color: color, size: 10 });
+                            object = new THREE.Points(sphereGeometry, material);
+                        } else if (style === 'Depth') {
+                            material = new THREE.MeshDepthMaterial();
+                            object = new THREE.Mesh(sphereGeometry, material);
+                        } else if (style === 'Normal') {
+                            material = new THREE.MeshNormalMaterial();
+                            object = new THREE.Mesh(sphereGeometry, material);
+                        } else if (style === 'Physical') {
+                            material = new THREE.MeshPhysicalMaterial({
+                                color: color,
+                                metalness: 0.5,
+                                roughness: 0.5,
+                                reflectivity: 0.5,
+                                clearcoat: 1.0,
+                                clearcoatRoughness: 0.1
+                            });
+                            object = new THREE.Mesh(sphereGeometry, material);
+                        }
+
+                        object.position.copy(position);
+                        object.position.multiplyScalar(75);
+                        object.scale.multiplyScalar(25);
+                        root.current.add(object);
+
+                        const atom = json.atoms[i];
+
+                        const text = document.createElement('div');
+                        text.className = 'label';
+                        text.style.color = 'rgb(' + atom[3][0] + ',' + atom[3][1] + ',' + atom[3][2] + ')';
+                        text.textContent = atom[4];
+
+                        const label = new CSS2DObject(text);
+                        label.position.copy(object.position);
+                        root.current.add(label);
                     }
-
-                    object.position.copy(position);
-                    object.position.multiplyScalar(75);
-                    object.scale.multiplyScalar(25);
-                    root.current.add(object);
-
-                    const atom = json.atoms[i];
-
-                    const text = document.createElement('div');
-                    text.className = 'label';
-                    text.style.color = 'rgb(' + atom[3][0] + ',' + atom[3][1] + ',' + atom[3][2] + ')';
-                    text.textContent = atom[4];
-
-                    const label = new CSS2DObject(text);
-                    label.position.copy(object.position);
-                    root.current.add(label);
                 }
 
                 positions = geometryBonds.getAttribute('position');
@@ -189,25 +202,27 @@ const Molecule = ({ model, style, content }) => {
                 const start = new THREE.Vector3();
                 const end = new THREE.Vector3();
 
-                // Creating 3D Bonds object
-                for (let i = 0; i < positions.count; i += 2) {
-                    start.x = positions.getX(i);
-                    start.y = positions.getY(i);
-                    start.z = positions.getZ(i);
+                if (type === 'Bonds' || type === 'Atoms + Bonds') {
+                    // Creating 3D Bonds object
+                    for (let i = 0; i < positions.count; i += 2) {
+                        start.x = positions.getX(i);
+                        start.y = positions.getY(i);
+                        start.z = positions.getZ(i);
 
-                    end.x = positions.getX(i + 1);
-                    end.y = positions.getY(i + 1);
-                    end.z = positions.getZ(i + 1);
+                        end.x = positions.getX(i + 1);
+                        end.y = positions.getY(i + 1);
+                        end.z = positions.getZ(i + 1);
 
-                    start.multiplyScalar(75);
-                    end.multiplyScalar(75);
+                        start.multiplyScalar(75);
+                        end.multiplyScalar(75);
 
-                    const object = new THREE.Mesh(boxGeometry, new THREE.MeshPhongMaterial({ color: 0xffffff }));
-                    object.position.copy(start);
-                    object.position.lerp(end, 0.5);
-                    object.scale.set(5, 5, start.distanceTo(end));
-                    object.lookAt(end);
-                    root.current.add(object);
+                        const object = new THREE.Mesh(boxGeometry, new THREE.MeshPhongMaterial({ color: 0xffffff }));
+                        object.position.copy(start);
+                        object.position.lerp(end, 0.5);
+                        object.scale.set(5, 5, start.distanceTo(end));
+                        object.lookAt(end);
+                        root.current.add(object);
+                    }
                 }
             });
         };
@@ -238,7 +253,7 @@ const Molecule = ({ model, style, content }) => {
             window.removeEventListener('resize', () => {});
             gl.setAnimationLoop(null);
         };
-    }, [model, style, scene, camera, gl]);
+    }, [model, style, scene, camera, gl, type]);
 
     return <group ref={root} />;
 };

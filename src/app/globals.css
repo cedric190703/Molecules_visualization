@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.lil-gui {
+    background-color: #1a202c;
+    color: #ffffff;
+    border: 1px solid #2d3748;
+}
+
+option {
+    color: #1a202c;
+}
